@@ -1,4 +1,9 @@
 #pragma once
+#if defined( READER )
+#define IMPORT_EXPORT __declspec(dllexport)
+#else
+#define IMPORT_EXPORT __declspec(dllimport)
+#endif
 #include <fstream>
 #include <vector>
 #include <string>
@@ -13,7 +18,7 @@ struct Uncrypted
 	std::vector<unsigned char> buffer;
 };
 
-class Reader
+class IMPORT_EXPORT Reader
 {
 public:
 	Reader();

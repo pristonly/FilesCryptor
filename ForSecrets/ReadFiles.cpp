@@ -1,3 +1,4 @@
+#define READER
 #include "ReadFiles.h"
 
 Reader::Reader()
