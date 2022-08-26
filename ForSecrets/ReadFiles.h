@@ -12,7 +12,9 @@
 
 struct Uncrypted
 {
+	size_t m_sizeFileName;
 	std::string m_FileName;
+	size_t m_sizepath;
 	std::string m_path;
 	uint64_t size;
 	std::vector<unsigned char> buffer;
@@ -25,6 +27,7 @@ public:
 	void Init(const std::vector<std::string>& paths);
 	void GetContent();
 	void Clear();
+	std::vector<unsigned char> ConverTo();
 	~Reader();
 private:
 	std::vector<Uncrypted> m_files;
