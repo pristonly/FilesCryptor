@@ -1,15 +1,6 @@
 #define READER
 #include "ReadFiles.h"
 
-inline unsigned char GetByte(size_t digit, size_t pos)
-{
-	return ((unsigned char)((digit >> pos * 8) & 0x000000ffU));
-}
-
-inline unsigned char GetByte(uint64_t digit, size_t pos)
-{
-	return ((unsigned char)((digit >> pos * 8) & 0x00000000000000ffULL));
-}
 
 Reader::Reader()
 {

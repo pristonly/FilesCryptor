@@ -1,4 +1,5 @@
 #pragma once
+#pragma warning( disable : 4251)
 #include <vector>
 #if defined( CRYPT )
 #define IMPORT_EXPORT __declspec(dllexport)
@@ -12,10 +13,11 @@ public:
 	AES();
 	virtual ~AES() { Clear(); };
 	void Init(const std::vector<unsigned char>& crypt);
+	void Init(std::vector<unsigned char>&& crypt) noexcept;
 	void InitKey(const std::vector<unsigned char>& key);
 	virtual void Encrypt() = 0;
 	virtual void Decrypt() = 0;
-	virtual std::vector<unsigned char>& GetData() = 0;
+	virtual std::vector<unsigned char> && GetData() = 0;
 	void Clear();
 
 
@@ -23,7 +25,7 @@ protected:
 	void InitParametra(unsigned char Nk, unsigned char Nr);
 	void _Encrypt();
 	void _Decrypt();
-	std::vector<unsigned char>& _GetData() { return _data; };
+	std::vector<unsigned char> && _GetData() noexcept { return std::move(_data); };
 
 private:
 	//Functions
@@ -67,7 +69,7 @@ public:
 	AES128() { InitParametra(4, 10); }
 	void Encrypt() override { _Encrypt(); }
 	void Decrypt() override { _Decrypt(); }
-	std::vector<unsigned char>& GetData() override { return _GetData(); }
+	std::vector<unsigned char>&& GetData() noexcept override { return _GetData(); }
 };
 
 class IMPORT_EXPORT AES192 : public AES
@@ -76,7 +78,7 @@ public:
 	AES192() { InitParametra(6, 12); }
 	void Encrypt() override { _Encrypt(); }
 	void Decrypt() override { _Decrypt(); }
-	std::vector<unsigned char>& GetData() override { return _GetData(); }
+	std::vector<unsigned char>&& GetData() noexcept override { return _GetData(); }
 };
 
 class IMPORT_EXPORT AES256 : public AES
@@ -85,20 +87,22 @@ public:
 	AES256() { InitParametra(8, 14); }
 	void Encrypt() override { _Encrypt(); }
 	void Decrypt() override { _Decrypt(); }
-	std::vector<unsigned char>& GetData() override { return _GetData(); }
+	std::vector<unsigned char>&& GetData() noexcept override { return _GetData(); }
 };
 
 class IMPORT_EXPORT AES_CBC
 {
 public:
 	virtual ~AES_CBC() { Clear(); };
+	AES_CBC() : m_banch(16, 0) {}
 	void Init(const std::vector<unsigned char>& crypt) { _data = crypt; }
+	void Init(std::vector<unsigned char> && crypt) noexcept { _data = std::move(crypt); }
 	void InitKey(const std::vector<unsigned char>& key) { _key = key; }
 	void InitVec(const std::vector<unsigned char>& initvec) { _InitVec = initvec; }
 	void Encrypt();
 	void Decrypt();
 	void Clear() { _data.clear(); _key.clear(); _InitVec.clear(); delete _blocks; }
-	std::vector<unsigned char>& GetData() { return _data; };
+	std::vector<unsigned char> && GetData() noexcept { return std::move(_data); };
 protected:
 	virtual void InitVers() = 0;
 	void CryptExtens();
@@ -107,6 +111,7 @@ private:
 	std::vector<unsigned char> _InitVec;
 	std::vector<unsigned char> _data;
 	std::vector<unsigned char> _key;
+	std::vector<unsigned char> m_banch;
 };
 
 class IMPORT_EXPORT AES_CBC_128 : public AES_CBC
@@ -144,6 +149,7 @@ public:
 	~MD5() { Clear(); }
 private:
 	void Addict();
+	void Cycle(unsigned int& dig, unsigned int count);
 	unsigned int A0 = 0X67452301;
 	unsigned int B0 = 0xefcdab89;
 	unsigned int C0 = 0x98badcfe;

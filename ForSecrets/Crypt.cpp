@@ -1,4 +1,5 @@
 #define CRYPT
+#pragma warning( disable : 4251)
 #include "Crypt.h"
 #include <cstdlib>
 
@@ -10,6 +11,11 @@ inline constexpr unsigned char operator "" _uchar( unsigned long long arg ) noex
 void AES::Init(const std::vector<unsigned char>& crypt)
 {
 	_data = crypt;
+}
+
+void AES::Init(std::vector<unsigned char> && crypt) noexcept
+{
+	_data = std::move(crypt);
 }
 
 void AES::InitKey(const std::vector<unsigned char>& key)
@@ -40,7 +46,7 @@ AES::AES() :
 	0xba, 0x78, 0x25, 0x2e, 0x1c, 0xa6, 0xb4, 0xc6, 0xe8, 0xdd, 0x74, 0x1f, 0x4b, 0xbd, 0x8b, 0x8a,
 	0x70, 0x3e, 0xb5, 0x66, 0x48, 0x03, 0xf6, 0x0e, 0x61, 0x35, 0x57, 0xb9, 0x86, 0xc1, 0x1d, 0x9e,
 	0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf,
-	0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16 }, 
+	0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16 },
 	rsbox {
 	0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
 	0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
@@ -64,20 +70,22 @@ AES::AES() :
 	},
 	Nb(4), Nk(4), Nr(10) ,tMul{0}
 {
-
+	InitTMul();
 }
 
 void AES::Transpon()
 {
-	std::vector<unsigned char> temp = _data;
+	unsigned char temp = 0;
 
-	for (size_t i = 0; i < temp.size() / 16; ++i)
+	for (size_t i = 0; i < _data.size() / 16; ++i)
 	{
 		for (size_t j = 0; j < Nb; ++j)
 		{
-			for (size_t z = 0; z < Nb; ++z)
+			for (size_t z = 0; z < j; ++z)
 			{
-				_data[i * Nb * Nb + j * Nb + z] = temp[i * Nb * Nb + j + z * Nb];
+				temp = _data[i * Nb * Nb + j * Nb + z];
+				_data[i * Nb * Nb + j * Nb + z] = _data[i * Nb * Nb + z * Nb + j];
+				_data[i * Nb * Nb + z * Nb + j] = temp;
 			}
 		}
 	}
@@ -85,15 +93,17 @@ void AES::Transpon()
 
 void AES::InvTranspon()
 {
-	std::vector<unsigned char> temp = _data;
+	unsigned char temp = 0;
 
-	for (size_t i = 0; i < temp.size() / 16; ++i)
+	for (size_t i = 0; i < _data.size() / 16; ++i)
 	{
 		for (size_t j = 0; j < Nb; ++j)
 		{
-			for (size_t z = 0; z < Nb; ++z)
+			for (size_t z = 0; z < j; ++z)
 			{
-				_data[i * Nb * Nb + j * Nb + z] = temp[i * Nb * Nb + j + z * Nb];
+				temp = _data[i * Nb * Nb + j * Nb + z];
+				_data[i * Nb * Nb + j * Nb + z] = _data[i * Nb * Nb + z * Nb + j];
+				_data[i * Nb * Nb + z * Nb + j] = temp;
 			}
 		}
 	}
@@ -201,10 +211,9 @@ void AES::InitTMul()
 
 void AES::MixColumns(size_t block)
 {
+	unsigned char temp[4];
 	for (size_t c = 0; c < 4; ++c)
 	{
-		unsigned char temp[4];
-
 		temp[0] = (tMul[0x02][_data[block * 16 + c]]) ^ (tMul[0x03][_data[block * 16 + 4 + c]]) ^ _data[block * 16 + 8 + c] ^ _data[block * 16 + 12 + c];
 		temp[1] = (tMul[0x02][_data[block * 16 + 4 + c]]) ^ (tMul[0x03][_data[block * 16 + 8 + c]]) ^ _data[block * 16 + c] ^ _data[block * 16 + 12 + c];
 		temp[2] = (tMul[0x02][_data[block * 16 + 8 + c]]) ^ (tMul[0x03][_data[block * 16 + 12 + c]]) ^ _data[block * 16 + c] ^ _data[block * 16 + 4 + c];
@@ -277,7 +286,6 @@ void AES::_Encrypt()
 {	
 	CryptExtens();
 	Transpon();
-	InitTMul();
 	CreateKeyShed();
 
 	for (size_t block = 0; (block * 16) < _data.size(); ++block)
@@ -349,7 +357,6 @@ void AES::InvMixColumns(size_t block)
 
 void AES::_Decrypt()
 {
-	InitTMul();
 	CreateKeyShed();
 
 	for (size_t block = 0; (block * 16) < _data.size(); ++block)
@@ -396,22 +403,20 @@ void AES_CBC::Encrypt()
 {
 	CryptExtens();
 
-	std::vector<unsigned char> temp(16, 0);
-
 	for (size_t block = 1; block < _data.size() / 16; ++block)
 	{
 		for (size_t i = 0; i < 16; ++i)
 		{
-			temp[i] = _data[(block - 1) * 16 + i] ^ _data[(block) * 16 + i];
+			m_banch[i] = _data[(block - 1) * 16 + i] ^ _data[(block) * 16 + i];
 		}
 
-		_blocks->Init(temp);
+		_blocks->Init(std::move(m_banch));
 		_blocks->InitKey(_key);
 		_blocks->Encrypt();
-
+		m_banch = std::move(_blocks->GetData());
 		for (size_t i = 0; i < 16; ++i)
 		{
-			_data[(block) * 16 + i] = _blocks->GetData()[i];
+			_data[(block) * 16 + i] = m_banch[i];
 		}
 
 		_blocks->Clear();
@@ -420,23 +425,21 @@ void AES_CBC::Encrypt()
 
 void AES_CBC::Decrypt()
 {
-	std::vector<unsigned char> temp(16, 0);
-
 	for (size_t block = 1; block < _data.size() / 16; ++block)
 	{
 		for (size_t i = 0; i < 16; ++i)
 		{
-			temp[i] = _data[(block) * 16 + i];
+			m_banch[i] = _data[(block) * 16 + i];
 		}
 
-		_blocks->Init(temp);
+		_blocks->Init(std::move(m_banch));
 		_blocks->InitKey(_key);
 		_blocks->Decrypt();
-
+		m_banch = std::move(_blocks->GetData());
 		for (size_t i = 0; i < 16; ++i)
 		{
 			unsigned char buff = _data[(block) * 16 + i];
-			_data[(block) * 16 + i] = _blocks->GetData()[i] ^ _InitVec[i];
+			_data[(block) * 16 + i] = m_banch[i] ^ _InitVec[i];
 			_InitVec[i] = buff;
 		}
 		_blocks->Clear();
@@ -451,14 +454,14 @@ void AES_CBC::Decrypt()
 
 void MD5::Addict()
 {
-	size_t addictBytes = _data.size() % 64;
-	size_t len = _data.size();
+	size_t addictBytes =  _data.size() % 64;
+	uint64_t len = _data.size();
 	if (addictBytes == 56)
 		_data.resize(_data.size() + 120, 0);
 	else
 	{
-		if(addictBytes < 8)
-			_data.resize(_data.size() + addictBytes + 56  , 0);
+		if(addictBytes < 56)
+			_data.resize(_data.size() + 56 - addictBytes, 0);
 		else
 			_data.resize(_data.size() + 56 - addictBytes, 0);
 	}
@@ -467,7 +470,7 @@ void MD5::Addict()
 	for (size_t i = 0; i < 8; ++i)
 	{
 		if (i < 4)
-			_data.emplace_back((unsigned char)((len >> (i * 8)) & 0xff));
+			_data.emplace_back((unsigned char)(((len*8) >> (i * 8)) & 0xff));
 		else
 			_data.emplace_back(0);
 	}
@@ -503,29 +506,29 @@ void MD5::MakeHash()
 		0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391
 	};
 
-	for (size_t i = 0; i < _data.size() / 64; ++i)
+	for (unsigned int i = 0; i < _data.size() / 64; ++i)
 	{
 		unsigned int M[16];
 		unsigned int A = A0;
 		unsigned int B = B0;
 		unsigned int C = C0;
 		unsigned int D = D0;
-		for (size_t j = 0; j < 16; ++j)
+		for (unsigned int j = 0; j < 16; ++j)
 		{
 			M[j] = *((unsigned int*)(_data.data() + (64 * i + j * 4)));
 		}
-		for (size_t z = 0; z < 64; ++z)
+		for (unsigned int z = 0; z < 64; ++z)
 		{
 			unsigned int F, g;
 
 			if (z >= 0 && z <= 15)
 			{
-				F = (B & C) | ((!B) & D);
+				F = (B & C) | ((~B) & D);
 				g = z;
 			}
 			if (z >= 16 && z <= 31)
 			{
-				F = (D & B) | ((!D) & C);
+				F = (D & B) | ((~D) & C);
 				g = (5 * z + 1) % 16;
 			}
 			if (z >= 32 && z <= 47)
@@ -535,14 +538,15 @@ void MD5::MakeHash()
 			}
 			if (z >= 48 && z <= 63)
 			{
-				F = C ^ (B | (!D));
+				F = C ^ (B | (~D));
 				g = (7 * z) % 16;
 			}
 			F = F + A + K[z] + M[g];
 			A = D;
 			D = C;
 			C = B;
-			B = B + (F << s[z]);
+			Cycle(F, s[z]);
+			B = B + F;
 		}
 		A0 += A;
 		B0 += B;
@@ -554,4 +558,14 @@ void MD5::MakeHash()
 	*(phash + 1) = B0;
 	*(phash + 2) = C0;
 	*(phash + 3) = D0;
+}
+
+void MD5::Cycle(unsigned int& dig, unsigned int count)
+{
+	unsigned int temp = 0;
+	for (; (int)count > 0; --count)
+	{
+		temp = (dig & 0x80000000) >> 31;
+		dig = (dig << 1) | temp;
+	}
 }
